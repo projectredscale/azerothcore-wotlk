@@ -127,6 +127,11 @@ public:
         return _ValidateSpellInfo(spellIds.begin(), spellIds.end());
     }
 
+    static bool ValidateSpellInfo(uint32 spellId)
+    {
+        return _ValidateSpellInfo(spellId);
+    }
+
     template <class T>
     static bool ValidateSpellInfo(T const& spellIds)
     {
