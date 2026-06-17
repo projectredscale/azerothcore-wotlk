@@ -1078,6 +1078,97 @@ class spell_hun_tame_beast : public SpellScript
     }
 };
 
+ class spell_hun_tame_beast_aura : public AuraScript
+{
+    PrepareAuraScript(spell_hun_tame_beast_aura);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({19597, 19677, 19676, 19678, 19679, 19680, 19684, 19682, 19681, 19683, 19685, 19686, 30647, 30648, 30652, 30100, 30103, 30104});
+    }
+
+    void HandleEffectRemove(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        Unit* target = GetTarget();
+        Unit* caster = GetCaster();
+        if (!target || !caster || !target->IsAlive() || !caster->IsAlive())
+            return;
+
+        if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_CANCEL)
+            return;
+
+        uint32 finalSpelId = 0;
+        switch (m_scriptSpellId)
+        {
+            case 19548:
+                finalSpelId = 19597;
+                break;
+            case 19674:
+                finalSpelId = 19677;
+                break;
+            case 19687:
+                finalSpelId = 19676;
+                break;
+            case 19688:
+                finalSpelId = 19678;
+                break;
+            case 19689:
+                finalSpelId = 19679;
+                break;
+            case 19692:
+                finalSpelId = 19680;
+                break;
+            case 19693:
+                finalSpelId = 19684;
+                break;
+            case 19694:
+                finalSpelId = 19681;
+                break;
+            case 19696:
+                finalSpelId = 19682;
+                break;
+            case 19697:
+                finalSpelId = 19683;
+                break;
+            case 19699:
+                finalSpelId = 19685;
+                break;
+            case 19700:
+                finalSpelId = 19686;
+                break;
+            case 30646:
+                finalSpelId = 30647;
+                break;
+            case 30653:
+                finalSpelId = 30648;
+                break;
+            case 30654:
+                finalSpelId = 30652;
+                break;
+            case 30099:
+                finalSpelId = 30100;
+                break;
+            case 30102:
+                finalSpelId = 30103;
+                break;
+            case 30105:
+                finalSpelId = 30104;
+                break;
+        }
+
+        if (finalSpelId)
+            caster->CastSpell(target, finalSpelId, true, nullptr, aurEff);
+    }
+
+    void Register() override
+    {
+        if (m_scriptSpellId == 1515)
+            OnEffectRemove += AuraEffectRemoveFn(spell_hun_tame_beast_aura::HandleEffectRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
+        else
+            OnEffectRemove += AuraEffectRemoveFn(spell_hun_tame_beast_aura::HandleEffectRemove, EFFECT_1, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
+    }
+};
+
 // 60144 - Viper Attack Speed
 class spell_hun_viper_attack_speed : public AuraScript
 {
@@ -1716,7 +1807,7 @@ void AddSC_hunter_spell_scripts()
     RegisterSpellScript(spell_hun_readiness);
     RegisterSpellScript(spell_hun_scatter_shot);
     RegisterSpellScript(spell_hun_sniper_training);
-    RegisterSpellScript(spell_hun_tame_beast);
+    RegisterSpellAndAuraScriptPair(spell_hun_tame_beast, spell_hun_tame_beast_aura);
     RegisterSpellScript(spell_hun_viper_attack_speed);
     RegisterSpellScript(spell_hun_volley_trigger);
     RegisterSpellScript(spell_hun_lock_and_load);
