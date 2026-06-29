@@ -10139,7 +10139,7 @@ void ObjectMgr::LoadCreatureDefaultTrainers()
 
             if (!GetCreatureTemplate(creatureId))
             {
-                LOG_ERROR("sql.sql", "Table `creature_default_trainer` references non-existing creature template (CreatureId: %u), ignoring", creatureId);
+                LOG_ERROR("sql.sql", "Table `creature_default_trainer` references non-existing creature template (CreatureId: {}), ignoring", creatureId);
                 continue;
             }
 
