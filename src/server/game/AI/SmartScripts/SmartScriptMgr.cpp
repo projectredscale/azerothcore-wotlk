@@ -913,6 +913,7 @@ bool SmartAIMgr::CheckUnusedActionParams(SmartScriptHolder const& e)
             case SMART_ACTION_SET_ANIM_TIER: return sizeof(SmartAction::animTier);
             case SMART_ACTION_SET_GOSSIP_MENU: return sizeof(SmartAction::setGossipMenu);
             case SMART_ACTION_SUMMON_GAMEOBJECT_GROUP: return sizeof(SmartAction::gameobjectGroup);
+            case SMART_ACTION_CAST_CUSTOM_VALUE: return sizeof(SmartAction::castCustomValue);
             case SMART_ACTION_DISMOUNT: return NO_PARAMS;
             default:
                 LOG_WARN("sql.sql", "SmartAIMgr: entryorguid {} source_type {} id {} action_type {} is using an action with no unused params specified in SmartAIMgr::CheckUnusedActionParams(), please report this.",
@@ -1651,6 +1652,10 @@ bool SmartAIMgr::IsEventValid(SmartScriptHolder& e)
             break;
         case SMART_ACTION_CUSTOM_CAST:
             if (!IsSpellValid(e, e.action.castCustom.spell))
+                return false;
+            break;
+        case SMART_ACTION_CAST_CUSTOM_VALUE:
+            if (!IsSpellValid(e, e.action.castCustomValue.spell))
                 return false;
             break;
         case SMART_ACTION_ADD_AURA:

@@ -28,6 +28,7 @@
 #include "Group.h"
 #include "InstanceScript.h"
 #include "Language.h"
+#include <bit>
 #include "MoveSplineInit.h"
 #include "ObjectDefines.h"
 #include "ObjectMgr.h"
@@ -2852,6 +2853,85 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                             }
                         }
                     }
+                }
+            }
+            break;
+        }
+        case SMART_ACTION_CAST_CUSTOM_VALUE:
+        {
+            if (!me)
+                break;
+
+            for (WorldObject* target : targets)
+            {
+                if (!IsUnit(target))
+                    continue;
+
+                Unit* unitTarget = target->ToUnit();
+                uint32 selector = e.action.castCustomValue.selector;
+
+                // Count set bits in selector (max 4 values fit in param3-param6)
+                uint32 bitCount = static_cast<uint32>(std::popcount(selector));
+                if (bitCount > 4)
+                {
+                    LOG_ERROR("sql.sql", "SmartAIMgr: Entry {} SourceType {} Event {} Action {} SMART_ACTION_CAST_CUSTOM_VALUE has {} bits set in selector (max 4), skipped.",
+                              e.entryOrGuid, e.GetScriptType(), e.event_id, e.GetActionType(), bitCount);
+                    continue;
+                }
+
+                // Values from param3-param6, consumed in ascending bit order
+                uint32 values[4] = { e.action.castCustomValue.val1, e.action.castCustomValue.val2, e.action.castCustomValue.val3, e.action.castCustomValue.val4 };
+                uint32 castFlags = 0;
+                CustomSpellValues spellValues;
+                uint32 valueIndex = 0;
+
+                // Enumerate bits 0-11 in ascending order
+                for (uint32 bit = 0; bit < 12 && valueIndex < bitCount; ++bit)
+                {
+                    if (!(selector & (1u << bit)))
+                        continue;
+
+                    uint32 val = values[valueIndex++];
+
+                    if (bit == 0)
+                    {
+                        // Bit 0 = SMARTCAST_* flags
+                        castFlags = val;
+                    }
+                    else
+                    {
+                        SpellValueMod mod = SpellValueMod(bit - 1);
+                        spellValues.AddSpellMod(mod, int32(val));
+                    }
+                }
+
+                if (castFlags & SMARTCAST_INTERRUPT_PREVIOUS)
+                    me->InterruptNonMeleeSpells(false);
+
+                if ((castFlags & SMARTCAST_AURA_NOT_PRESENT) && unitTarget->HasAura(e.action.castCustomValue.spell))
+                    continue;
+
+                SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(e.action.castCustomValue.spell);
+                if (!spellInfo)
+                {
+                    LOG_ERROR("sql.sql", "SmartAIMgr: Entry {} SourceType {} Event {} Action {} SMART_ACTION_CAST_CUSTOM_VALUE uses non-existent spell {}, skipped.",
+                              e.entryOrGuid, e.GetScriptType(), e.event_id, e.GetActionType(), e.action.castCustomValue.spell);
+                    continue;
+                }
+
+                SpellCastResult result = me->CastCustomSpell(
+                    spellInfo,
+                    spellValues,
+                    unitTarget,
+                    (castFlags & SMARTCAST_TRIGGERED) ? TRIGGERED_FULL_MASK : TRIGGERED_NONE);
+
+                if (castFlags & SMARTCAST_COMBAT_MOVE)
+                {
+                    float spellMaxRange = me->GetSpellMaxRangeForTarget(unitTarget, spellInfo);
+                    if (result == SPELL_FAILED_OUT_OF_RANGE || result == SPELL_CAST_OK)
+                        CAST_AI(SmartAI, me->AI())->SetCurrentRangeMode(true, std::max(spellMaxRange - NOMINAL_MELEE_RANGE, 0.0f));
+                    else
+                        CAST_AI(SmartAI, me->AI())->SetCurrentRangeMode(false, 0.f);
                 }
             }
             break;
