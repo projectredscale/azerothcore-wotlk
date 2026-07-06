@@ -505,6 +505,9 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover
 
         if (movementInfo.pos.GetPositionZ() < plrMover->GetMap()->GetMinHeight(movementInfo.pos.GetPositionX(), movementInfo.pos.GetPositionY()))
         {
+            if (sScriptMgr->OnPlayerUnderMap(plrMover))
+                return;
+
             if (!plrMover->GetBattleground() || !plrMover->GetBattleground()->HandlePlayerUnderMap(_player))
             {
                 if (plrMover->IsAlive())

@@ -588,6 +588,7 @@ public: /* UnitScript */
 
 public: /* MovementHandlerScript */
     void OnPlayerMove(Player* player, MovementInfo movementInfo, uint32 opcode);
+    bool OnPlayerUnderMap(Player* player);
 
 public: /* AllCreatureScript */
     //listener function (OnAllCreatureUpdate) is called by OnCreatureUpdate

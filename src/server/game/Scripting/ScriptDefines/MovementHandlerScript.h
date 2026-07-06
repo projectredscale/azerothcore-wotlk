@@ -25,6 +25,7 @@
 enum MovementHook
 {
     MOVEMENTHOOK_ON_PLAYER_MOVE,
+    MOVEMENTHOOK_ON_PLAYER_UNDER_MAP,
     MOVEMENTHOOK_END
 };
 
@@ -36,6 +37,10 @@ protected:
 public:
     //Called whenever a player moves
     virtual void OnPlayerMove(Player* /*player*/, MovementInfo /*movementInfo*/, uint32 /*opcode*/) { }
+
+    //Called when a player falls below the map's minimum height, before environmental damage is applied
+    //Return true to handle the situation (e.g., teleport to safety) and skip the default kill logic
+    virtual bool OnPlayerUnderMap(Player* /*player*/) { return false; }
 };
 
 #endif

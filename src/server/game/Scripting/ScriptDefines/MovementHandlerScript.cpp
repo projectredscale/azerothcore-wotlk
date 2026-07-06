@@ -24,7 +24,12 @@ void ScriptMgr::OnPlayerMove(Player* player, MovementInfo movementInfo, uint32 o
     CALL_ENABLED_HOOKS(MovementHandlerScript, MOVEMENTHOOK_ON_PLAYER_MOVE, script->OnPlayerMove(player, movementInfo, opcode));
 }
 
-MovementHandlerScript::MovementHandlerScript(char const* name, std::vector<uint16> enabledHooks) :
+bool ScriptMgr::OnPlayerUnderMap(Player* player)
+{
+    CALL_ENABLED_BOOLEAN_HOOKS_WITH_DEFAULT_FALSE(MovementHandlerScript, MOVEMENTHOOK_ON_PLAYER_UNDER_MAP, script->OnPlayerUnderMap(player));
+}
+
+MovementHandlerScript::MovementHandlerScript(const char* name, std::vector<uint16> enabledHooks) :
     ScriptObject(name, MOVEMENTHOOK_END)
 {
     // If empty - enable all available hooks.
