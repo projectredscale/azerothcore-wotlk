@@ -1036,7 +1036,7 @@ void World::SetInitialWorldSettings()
         {
             MapEntry const* mapEntry = sMapStore.LookupEntry(i);
 
-            if (mapEntry && !mapEntry->Instanceable())
+            if (mapEntry && !mapEntry->Instanceable() && !DisableMgr::IsDisabledFor(DISABLE_TYPE_MAP, mapEntry->MapID, nullptr, 0))
             {
                 if (sMapMgr->GetMapUpdater()->activated())
                     sMapMgr->GetMapUpdater()->schedule_map_preload(mapEntry->MapID);
