@@ -37,10 +37,11 @@ public:
     {
         static ChatCommandTable sendCommandTable =
         {
-            { "items",   HandleSendItemsCommand,   rbac::RBAC_PERM_COMMAND_SEND_ITEMS,   Console::Yes },
-            { "mail",    HandleSendMailCommand,    rbac::RBAC_PERM_COMMAND_SEND_MAIL,    Console::Yes },
-            { "message", HandleSendMessageCommand, rbac::RBAC_PERM_COMMAND_SEND_MESSAGE, Console::Yes },
-            { "money",   HandleSendMoneyCommand,   rbac::RBAC_PERM_COMMAND_SEND_MONEY,   Console::Yes }
+            { "items",     HandleSendItemsCommand,     rbac::RBAC_PERM_COMMAND_SEND_ITEMS,   Console::Yes },
+            { "itemsbind", HandleSendItemsBindCommand, rbac::RBAC_PERM_COMMAND_SEND_ITEMS,   Console::Yes },
+            { "mail",      HandleSendMailCommand,      rbac::RBAC_PERM_COMMAND_SEND_MAIL,    Console::Yes },
+            { "message",   HandleSendMessageCommand,   rbac::RBAC_PERM_COMMAND_SEND_MESSAGE, Console::Yes },
+            { "money",     HandleSendMoneyCommand,     rbac::RBAC_PERM_COMMAND_SEND_MONEY,   Console::Yes }
         };
 
         static ChatCommandTable commandTable =
@@ -52,6 +53,17 @@ public:
     }
 
     static bool HandleSendItemsCommand(ChatHandler* handler, Optional<PlayerIdentifier> target, QuotedString subject, QuotedString text, Tail items)
+    {
+        return HandleSendItemsImpl(handler, target, subject, text, items, false);
+    }
+
+    static bool HandleSendItemsBindCommand(ChatHandler* handler, Optional<PlayerIdentifier> target, QuotedString subject, QuotedString text, Tail items)
+    {
+        return HandleSendItemsImpl(handler, target, subject, text, items, true);
+    }
+
+private:
+    static bool HandleSendItemsImpl(ChatHandler* handler, Optional<PlayerIdentifier>& target, QuotedString& subject, QuotedString& text, Tail& items, bool soulbind)
     {
         if (!target)
         {
@@ -126,6 +138,11 @@ public:
         {
             if (Item* item = Item::CreateItem(itemID, itemCount, handler->GetSession() ? handler->GetSession()->GetPlayer() : 0))
             {
+                if (soulbind)
+                {
+                    item->SetBinding(true);
+                    item->SetOwnerGUID(target->GetGUID());
+                }
                 item->SaveToDB(trans); // save for prevent lost at next mail load, if send fail then item will deleted
                 draft.AddItem(item);
             }
@@ -137,6 +154,8 @@ public:
         handler->PSendSysMessage(LANG_MAIL_SENT, handler->playerLink(target->GetName()));
         return true;
     }
+
+public:
 
     static bool HandleSendMailCommand(ChatHandler* handler, Optional<PlayerIdentifier> target, QuotedString subject, QuotedString text)
     {
