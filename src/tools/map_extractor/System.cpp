@@ -106,11 +106,6 @@ char const* CONF_mpq_list[] =
     "common-2.MPQ",
     "lichking.MPQ",
     "expansion.MPQ",
-    "patch.MPQ",
-    "patch-2.MPQ",
-    "patch-3.MPQ",
-    "patch-4.MPQ",
-    "patch-5.MPQ",
 };
 
 static char const* const langs[] = {"enGB", "enUS", "deDE", "esES", "frFR", "koKR", "zhCN", "zhTW", "enCN", "enTW", "esMX", "ruRU" };
@@ -1167,6 +1162,37 @@ void LoadCommonMPQFiles()
     for (int i = 0; i < count; ++i)
     {
         sprintf(filename, "%s/Data/%s", input_path, CONF_mpq_list[i]);
+        if (FileExists(filename))
+            new MPQArchive(filename);
+    }
+
+    // Scan patch levels dynamically, numeric and lettered, instead of hard-coding them,
+    // mirroring the client's patch parsing and vmap4_extractor::scan_patches.
+    for (int i = 0; i <= 99; ++i)
+    {
+        if (i == 0)
+            sprintf(filename, "%s/Data/patch.MPQ", input_path);
+        else
+            sprintf(filename, "%s/Data/patch-%d.MPQ", input_path, i);
+
+        if (FileExists(filename))
+            new MPQArchive(filename);
+    }
+
+    // Lettered levels in both cases: the client resolves archive names without regard to case,
+    // this filesystem does not.
+    for (char level = 'A'; level <= 'Z'; ++level)
+    {
+        sprintf(filename, "%s/Data/patch-%c.MPQ", input_path, level);
+
+        if (FileExists(filename))
+            new MPQArchive(filename);
+    }
+
+    for (char level = 'a'; level <= 'z'; ++level)
+    {
+        sprintf(filename, "%s/Data/patch-%c.mpq", input_path, level);
+
         if (FileExists(filename))
             new MPQArchive(filename);
     }

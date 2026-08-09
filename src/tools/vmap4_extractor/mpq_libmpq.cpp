@@ -15,15 +15,28 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _CRT_SECURE_NO_DEPRECATE
+
 #include "mpq_libmpq04.h"
 #include <algorithm>
 #include <cstdio>
 #include <deque>
+#include <string>
+#include <sys/stat.h>
 
 ArchiveSet gOpenArchives;
+DirectorySet gDirectoryArchives;
 
 MPQArchive::MPQArchive(char const* filename)
 {
+    struct stat status = {};
+    if (stat(filename, &status) == 0 && (status.st_mode & S_IFDIR))
+    {
+        printf("Opening directory %s as unpacked archive\n", filename);
+        gDirectoryArchives.emplace_back(filename);
+        return;
+    }
+
     int result = libmpq__archive_open(&mpq_a, filename, -1);
     printf("Opening %s\n", filename);
     if (result)
@@ -51,18 +64,16 @@ MPQArchive::MPQArchive(char const* filename)
         }
         return;
     }
+    opened = true;
     gOpenArchives.push_front(this);
-}
-
-bool MPQArchive::isOpened() const
-{
-    return std::find(gOpenArchives.begin(), gOpenArchives.end(), this) != gOpenArchives.end();
 }
 
 void MPQArchive::close()
 {
-    //gOpenArchives.erase(erase(&mpq_a);
+    if (!opened)
+        return;
     libmpq__archive_close(mpq_a);
+    opened = false;
 }
 
 MPQFile::MPQFile(char const* filename):
@@ -95,8 +106,52 @@ MPQFile::MPQFile(char const* filename):
         /*libmpq_file_getdata(&mpq_a, hash, fileno, (unsigned char*)buffer);*/
         return;
     }
+
+    // File not found in any opened archive: fall back to unpacked `patch-*.MPQ` folders.
+    if (loadFromDisk(filename))
+        return;
+
     eof = true;
     buffer = nullptr;
+}
+
+bool MPQFile::loadFromDisk(char const* filename)
+{
+    std::string diskPath(filename);
+    std::replace(diskPath.begin(), diskPath.end(), '\\', '/');
+
+    for (auto const& directory : gDirectoryArchives)
+    {
+        std::string fullPath = directory + "/" + diskPath;
+        FILE* file = fopen(fullPath.c_str(), "rb");
+        if (!file)
+            continue;
+
+        fseek(file, 0, SEEK_END);
+        long fileSize = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        if (fileSize <= 0)
+        {
+            fclose(file);
+            continue;
+        }
+
+        char* data = new char[fileSize];
+        std::size_t bytesRead = fread(data, 1, fileSize, file);
+        fclose(file);
+
+        if (bytesRead != static_cast<std::size_t>(fileSize))
+        {
+            delete[] data;
+            continue;
+        }
+
+        buffer = data;
+        size = fileSize;
+        return true;
+    }
+    return false;
 }
 
 std::size_t MPQFile::read(void* dest, std::size_t bytes)

@@ -241,31 +241,51 @@ void getGamePath()
 #endif
 }
 
+static bool file_exists(char const* path)
+{
+#ifdef __linux__
+    FILE* h = fopen64(path, "rb");
+#else
+    FILE* h = fopen(path, "rb");
+#endif
+    if (!h)
+        return false;
+
+    fclose(h);
+    return true;
+}
+
 bool scan_patches(char* scanmatch, std::vector<std::string>& pArchiveNames)
 {
-    int i;
     char path[512];
 
-    for (i = 1; i <= 99; i++)
+    for (int i = 0; i <= 99; i++)
     {
-        if (i != 1)
-        {
-            sprintf(path, "%s-%d.MPQ", scanmatch, i);
-        }
-        else
-        {
+        if (i == 0)
             sprintf(path, "%s.MPQ", scanmatch);
-        }
-#ifdef __linux__
-        if (FILE* h = fopen64(path, "rb"))
-#else
-        if (FILE* h = fopen(path, "rb"))
-#endif
-        {
-            fclose(h);
-            //matches.push_back(path);
+        else
+            sprintf(path, "%s-%d.MPQ", scanmatch, i);
+
+        if (file_exists(path))
             pArchiveNames.emplace_back(path);
-        }
+    }
+
+    // Lettered levels in both cases: the client resolves archive names without regard to case,
+    // this filesystem does not.
+    for (char level = 'A'; level <= 'Z'; level++)
+    {
+        sprintf(path, "%s-%c.MPQ", scanmatch, level);
+
+        if (file_exists(path))
+            pArchiveNames.emplace_back(path);
+    }
+
+    for (char level = 'a'; level <= 'z'; level++)
+    {
+        sprintf(path, "%s-%c.mpq", scanmatch, level);
+
+        if (file_exists(path))
+            pArchiveNames.emplace_back(path);
     }
 
     return (true);

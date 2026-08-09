@@ -36,6 +36,7 @@ public:
     MPQArchive(char const* filename);
     ~MPQArchive() { close(); }
     void close();
+    bool isOpened() const { return opened; }
 
     void GetFileListTo(vector<string>& filelist)
     {
@@ -66,8 +67,14 @@ public:
 
         delete[] buffer;
     }
+
+private:
+    bool opened = false;
 };
 typedef std::deque<MPQArchive*> ArchiveSet;
+// Unpacked archive folders (e.g. a `patch-4.MPQ` directory) that MPQFile reads from on disk.
+typedef std::deque<std::string> DirectorySet;
+extern DirectorySet gDirectoryArchives;
 
 // cppcheck-suppress ctuOneDefinitionRuleViolation
 class MPQFile
@@ -80,6 +87,8 @@ class MPQFile
     // disable copying
     MPQFile(MPQFile const& /*f*/) {}
     void operator=(MPQFile const& /*f*/) {}
+
+    bool loadFromDisk(char const* filename);
 
 public:
     MPQFile(char const* filename);    // filenames are not case sensitive
