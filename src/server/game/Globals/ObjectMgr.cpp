@@ -3563,7 +3563,7 @@ void ObjectMgr::LoadItemTemplates()
             itemTemplate.BuyCount = 1;
         }
 
-        if (itemTemplate.RequiredSkill >= MAX_SKILL_TYPE)
+        if (itemTemplate.RequiredSkill && !sSkillLineStore.LookupEntry(itemTemplate.RequiredSkill))
         {
             LOG_ERROR("sql.sql", "Item (Entry: {}) has wrong RequiredSkill value ({})", entry, itemTemplate.RequiredSkill);
             itemTemplate.RequiredSkill = 0;
