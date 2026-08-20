@@ -23,6 +23,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 #include "SharedDefines.h"
 #include "World.h"
 #include "WorldPacket.h"
@@ -303,6 +304,10 @@ bool Warden::ProcessLuaCheckResponse(std::string const& msg)
         WardenCheck const* check = sWardenCheckMgr->GetWardenDataById(id);
         if (check && check->Type == LUA_EVAL_CHECK)
         {
+            if (Player* player = _session->GetPlayer())
+                if (!sScriptMgr->OnPlayerWardenLuaCheck(player, id, false))
+                    return true;
+
             ApplyPenalty(id, "");
             return true;
         }

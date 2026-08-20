@@ -236,6 +236,7 @@ enum PlayerHook
     PLAYERHOOK_ON_BEFORE_RECEIVE_SPELL_LIST_FROM_TRAINER,
     PLAYERHOOK_ON_GET_TRAINER_SPELL_STATE,
     PLAYERHOOK_ON_AFTER_TRAIN_SPELL,
+    PLAYERHOOK_ON_WARDEN_LUA_CHECK,
     PLAYERHOOK_END
 };
 
@@ -971,6 +972,16 @@ public:
      * @param spellId The id of the trainer spell that was bought
      */
     virtual void OnPlayerAfterTrainSpell(Player* /*player*/, Creature* /*trainer*/, uint32 /*spellId*/) {}
+
+    /**
+     * @brief This hook is called when a LUA_EVAL_CHECK response is received from the client.
+     *
+     * @param checkId The warden check ID (from warden_checks table)
+     * @param passed Always false when called (Lua returned truthy = failure)
+     * @param player The player who was checked
+     * @return true to apply default penalty, false to suppress it
+     */
+    virtual bool OnPlayerWardenLuaCheck(Player* /*player*/, uint16 /*checkId*/, bool /*passed*/) { return true; }
 };
 
 #endif
