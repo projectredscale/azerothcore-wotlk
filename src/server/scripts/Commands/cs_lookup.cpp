@@ -1587,19 +1587,14 @@ public:
             {
                 return false;
             }
-
-            *ip = target->GetSession()->GetRemoteAddress();
-        }
-        else
-        {
-            ip = *ip;
+            ip = target->GetSession()->GetRemoteAddress();
         }
 
         LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_BY_IP);
         stmt->SetData(0, *ip);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
-        return LookupPlayerSearchCommand(result, *limit ? *limit : -1, handler);
+        return LookupPlayerSearchCommand(result, limit.value_or(-1), handler);
     }
 
     static bool HandleLookupPlayerAccountCommand(ChatHandler* handler, std::string account, Optional<int32> limit)
@@ -1613,7 +1608,7 @@ public:
         stmt->SetData(0, account);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
-        return LookupPlayerSearchCommand(result, *limit ? *limit : -1, handler);
+        return LookupPlayerSearchCommand(result, limit.value_or(-1), handler);
     }
 
     static bool HandleLookupPlayerEmailCommand(ChatHandler* handler, std::string email, Optional<int32> limit)
@@ -1622,7 +1617,7 @@ public:
         stmt->SetData(0, email);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
-        return LookupPlayerSearchCommand(result, *limit ? *limit : -1, handler);
+        return LookupPlayerSearchCommand(result, limit.value_or(-1), handler);
     }
 
     static bool LookupPlayerSearchCommand(PreparedQueryResult result, int32 limit, ChatHandler* handler)
