@@ -117,6 +117,16 @@ public:
     }
     uint64 GetLastModifiedTime() const { return _lastModifiedTime; }
     GMTicketEscalationStatus GetEscalatedStatus() const { return _escalatedStatus; }
+    ObjectGuid GetPlayerGUID() const { return _playerGuid; }
+    uint64 GetCreateTime() const { return _createTime; }
+    uint32 GetMapId() const { return _mapId; }
+    float GetPositionX() const { return _posX; }
+    float GetPositionY() const { return _posY; }
+    float GetPositionZ() const { return _posZ; }
+    bool IsViewed() const { return _viewed; }
+    ObjectGuid GetClosedBy() const { return _closedBy; }
+    ObjectGuid GetResolvedBy() const { return _resolvedBy; }
+    std::string const& GetComment() const { return _comment; }
 
     void SetEscalatedStatus(GMTicketEscalationStatus escalatedStatus) { _escalatedStatus = escalatedStatus; }
     void SetAssignedTo(ObjectGuid guid, bool isAdmin)
@@ -202,6 +212,8 @@ public:
 
         return nullptr;
     }
+
+    GmTicketList const& GetTicketList() const { return _ticketList; }
 
     GmTicket* GetTicketByPlayer(ObjectGuid playerGuid)
     {
