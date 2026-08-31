@@ -145,6 +145,8 @@ void WorldSession::HandleGMTicketUpdateOpcode(WorldPacket& recv_data)
         ticket->SetMessage(message);
         ticket->SaveToDB(trans);
 
+        sTicketMgr->UpdateLastChange(ticket);
+
         ChatHandler(nullptr).SendGMText(LANG_COMMAND_TICKETUPDATED, GetPlayer()->GetName(), ticket->GetId());
 
         response = GMTICKET_RESPONSE_UPDATE_SUCCESS;
