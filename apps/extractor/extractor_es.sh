@@ -1,4 +1,12 @@
 #!/bin/bash
+function FaltaConfig {
+    echo "Falta mmaps-config.yaml en el directorio actual."
+    echo "El generador de mmaps no puede funcionar sin el, y extraer los"
+    echo "mmaps lleva horas, asi que no se ha extraido nada."
+    echo "Copie mmaps-config.yaml junto a mmaps_generator y ejecute esto de nuevo."
+    exit 1
+}
+
 function Base {
     echo "Extrayendo archivos base"
     rm -rf dbc maps Cameras
@@ -17,6 +25,7 @@ function VMaps {
 }
 
 function MMaps {
+    [ -f "mmaps-config.yaml" ] || FaltaConfig
     echo "Esto puede tardar unas horas en completarse. Por favor, tenga paciencia."
     mkdir -p mmaps
     rm -rf mmaps/*
@@ -25,6 +34,7 @@ function MMaps {
 }
 
 function All {
+    [ -f "mmaps-config.yaml" ] || FaltaConfig
     echo "Esto puede tardar varias horas en completarse. Por favor, tenga paciencia."
     rm -rf dbc maps Cameras
     mkdir -p Buildings vmaps mmaps
@@ -74,12 +84,12 @@ case $choice in
 esac
 }
 
-if [ -d "./Data" ] && [ -f "map_extractor" ] && [ -f "vmap4_extractor" ] && [ -f "vmap4_assembler" ] && [ -f "mmaps_generator" ]; then
+if [ -d "./Data" ] && [ -f "map_extractor" ] && [ -f "vmap4_extractor" ] && [ -f "vmap4_assembler" ] && [ -f "mmaps_generator" ] && [ -f "mmaps-config.yaml" ]; then
     echo "Los archivos y carpetas requeridos existen en el directorio actual."
     chmod +x map_extractor vmap4_extractor vmap4_assembler mmaps_generator
     Menu
 else
     echo "Uno o más archivos o carpetas requeridos no se encuentran en el directorio actual."
     echo "Coloque map_extractor vmap4_extractor vmap4_assembler mmaps_generator"
-    echo "en su directorio de WoW junto con WoW.exe"
+    echo "y mmaps-config.yaml en su directorio de WoW junto con WoW.exe"
 fi

@@ -49,6 +49,7 @@ rmdir Buildings /s /q
 GOTO MENU
 
 :MMAPS
+IF NOT EXIST mmaps-config.yaml GOTO NOCONFIG
 ECHO This may take a few hours to complete. Please be patient.
 PAUSE
 if exist mmaps\ (
@@ -61,6 +62,7 @@ start /b /w mmaps_generator.exe
 GOTO MENU
 
 :ALL
+IF NOT EXIST mmaps-config.yaml GOTO NOCONFIG
 ECHO This may take a few hours to complete. Please be patient.
 PAUSE
 if exist vmaps\ (
@@ -81,3 +83,11 @@ start /b /w vmap4_assembler.exe Buildings vmaps
 rmdir Buildings /s /q
 start /b /w mmaps_generator.exe
 GOTO MENU
+
+:NOCONFIG
+ECHO mmaps-config.yaml is missing from the current directory.
+ECHO The mmaps generator cannot run without it, and extracting mmaps
+ECHO takes hours, so nothing was extracted.
+ECHO Copy mmaps-config.yaml next to mmaps_generator and run this again.
+PAUSE
+GOTO :EOF
