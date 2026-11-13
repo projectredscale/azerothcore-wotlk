@@ -24,6 +24,11 @@
 #include <set>
 #include <unordered_map>
 #include <cstring>
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #include "direct.h"
@@ -1155,6 +1160,88 @@ void LoadLocaleMPQFiles(int const locale)
     }
 }
 
+namespace
+{
+bool EqualsNoCase(std::string const& left, std::string const& right)
+{
+    if (left.size() != right.size())
+        return false;
+
+    for (std::size_t i = 0; i < left.size(); ++i)
+    {
+        if (std::tolower(static_cast<unsigned char>(left[i])) != std::tolower(static_cast<unsigned char>(right[i])))
+            return false;
+    }
+
+    return true;
+}
+
+// Load order of `prefix[<level>].mpq`, which is what decides which copy of a file the client
+// keeps: the bare name first, then the numeric levels, then the lettered ones. -1 for any other
+// name.
+int PatchLoadOrder(std::string const& fileName, std::string const& prefix)
+{
+    if (fileName.size() < prefix.size() + 4 || !EqualsNoCase(fileName.substr(0, prefix.size()), prefix))
+        return -1;
+
+    if (!EqualsNoCase(fileName.substr(fileName.size() - 4), ".mpq"))
+        return -1;
+
+    std::size_t levelStart = prefix.size();
+    if (levelStart < fileName.size() && (fileName[levelStart] == '-' || fileName[levelStart] == '_'))
+        ++levelStart;
+
+    std::string const level = fileName.substr(levelStart, fileName.size() - 4 - levelStart);
+
+    if (level.empty())
+        return 0;
+
+    if (level.size() == 1 && !std::isdigit(static_cast<unsigned char>(level[0])))
+    {
+        char const letter = static_cast<char>(std::toupper(static_cast<unsigned char>(level[0])));
+        return letter >= 'A' && letter <= 'Z' ? 1000 + (letter - 'A') : -1;
+    }
+
+    for (char const character : level)
+    {
+        if (!std::isdigit(static_cast<unsigned char>(character)))
+            return -1;
+    }
+
+    return std::atoi(level.c_str());
+}
+
+// Every `prefix[<level>].mpq` in `directory`, MPQs and unpacked folders alike, in load order, so
+// the caller opens the highest level last and it wins inside MPQFile.
+std::vector<std::string> FindPatchArchives(std::string const& directory, std::string const& prefix)
+{
+    std::vector<std::pair<int, std::string>> ranked;
+
+    std::error_code error;
+    for (std::filesystem::directory_iterator it(directory, error), end; !error && it != end; it.increment(error))
+    {
+        std::string const fileName = it->path().filename().string();
+        int const rank = PatchLoadOrder(fileName, prefix);
+        if (rank < 0)
+            continue;
+
+        ranked.emplace_back(rank, it->path().string());
+    }
+
+    std::sort(ranked.begin(), ranked.end(), [](std::pair<int, std::string> const& left, std::pair<int, std::string> const& right)
+    {
+        return left.first != right.first ? left.first < right.first : left.second < right.second;
+    });
+
+    std::vector<std::string> archives;
+    archives.reserve(ranked.size());
+    for (auto const& entry : ranked)
+        archives.push_back(entry.second);
+
+    return archives;
+}
+} // namespace
+
 void LoadCommonMPQFiles()
 {
     char filename[512];
@@ -1166,36 +1253,12 @@ void LoadCommonMPQFiles()
             new MPQArchive(filename);
     }
 
-    // Scan patch levels dynamically, numeric and lettered, instead of hard-coding them,
-    // mirroring the client's patch parsing and vmap4_extractor::scan_patches.
-    for (int i = 0; i <= 99; ++i)
-    {
-        if (i == 0)
-            sprintf(filename, "%s/Data/patch.MPQ", input_path);
-        else
-            sprintf(filename, "%s/Data/patch-%d.MPQ", input_path, i);
-
-        if (FileExists(filename))
-            new MPQArchive(filename);
-    }
-
-    // Lettered levels in both cases: the client resolves archive names without regard to case,
-    // this filesystem does not.
-    for (char level = 'A'; level <= 'Z'; ++level)
-    {
-        sprintf(filename, "%s/Data/patch-%c.MPQ", input_path, level);
-
-        if (FileExists(filename))
-            new MPQArchive(filename);
-    }
-
-    for (char level = 'a'; level <= 'z'; ++level)
-    {
-        sprintf(filename, "%s/Data/patch-%c.mpq", input_path, level);
-
-        if (FileExists(filename))
-            new MPQArchive(filename);
-    }
+    // Patch levels are neither a fixed number nor a fixed spelling: stock ships `patch.MPQ` up to
+    // `patch-3.MPQ`, a release installs `patch-A.MPQ` up to `patch-P.MPQ`, and the dev client mounts
+    // those as `patch-A.mpq` folders of loose files. Name none of them and scan the directory for
+    // what is there, the way the client does.
+    for (std::string const& patchArchive : FindPatchArchives(std::string(input_path) + "/Data", "patch"))
+        new MPQArchive(patchArchive.c_str());
 }
 
 inline void CloseMPQFiles()

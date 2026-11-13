@@ -16,11 +16,16 @@
  */
 
 #define _CRT_SECURE_NO_DEPRECATE
+#include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <cstdio>
+#include <filesystem>
 #include <list>
 #include <map>
+#include <string>
 #include <sys/stat.h>
+#include <utility>
 #include <vector>
 
 #if defined(WIN32) || defined(_WIN32)
@@ -241,52 +246,79 @@ void getGamePath()
 #endif
 }
 
-static bool file_exists(char const* path)
+static bool equals_no_case(std::string const& left, std::string const& right)
 {
-#ifdef __linux__
-    FILE* h = fopen64(path, "rb");
-#else
-    FILE* h = fopen(path, "rb");
-#endif
-    if (!h)
+    if (left.size() != right.size())
         return false;
 
-    fclose(h);
+    for (std::size_t i = 0; i < left.size(); ++i)
+    {
+        if (std::tolower(static_cast<unsigned char>(left[i])) != std::tolower(static_cast<unsigned char>(right[i])))
+            return false;
+    }
+
     return true;
 }
 
-bool scan_patches(char* scanmatch, std::vector<std::string>& pArchiveNames)
+// Load order of `prefix[<level>].mpq`, which is what decides which copy of a file the client
+// keeps: the bare name first, then the numeric levels, then the lettered ones. -1 for any other
+// name.
+static int patch_load_order(std::string const& fileName, std::string const& prefix)
 {
-    char path[512];
+    if (fileName.size() < prefix.size() + 4 || !equals_no_case(fileName.substr(0, prefix.size()), prefix))
+        return -1;
 
-    for (int i = 0; i <= 99; i++)
+    if (!equals_no_case(fileName.substr(fileName.size() - 4), ".mpq"))
+        return -1;
+
+    std::size_t levelStart = prefix.size();
+    if (levelStart < fileName.size() && (fileName[levelStart] == '-' || fileName[levelStart] == '_'))
+        ++levelStart;
+
+    std::string const level = fileName.substr(levelStart, fileName.size() - 4 - levelStart);
+
+    if (level.empty())
+        return 0;
+
+    if (level.size() == 1 && !std::isdigit(static_cast<unsigned char>(level[0])))
     {
-        if (i == 0)
-            sprintf(path, "%s.MPQ", scanmatch);
-        else
-            sprintf(path, "%s-%d.MPQ", scanmatch, i);
-
-        if (file_exists(path))
-            pArchiveNames.emplace_back(path);
+        char const letter = static_cast<char>(std::toupper(static_cast<unsigned char>(level[0])));
+        return letter >= 'A' && letter <= 'Z' ? 1000 + (letter - 'A') : -1;
     }
 
-    // Lettered levels in both cases: the client resolves archive names without regard to case,
-    // this filesystem does not.
-    for (char level = 'A'; level <= 'Z'; level++)
+    for (char const character : level)
     {
-        sprintf(path, "%s-%c.MPQ", scanmatch, level);
-
-        if (file_exists(path))
-            pArchiveNames.emplace_back(path);
+        if (!std::isdigit(static_cast<unsigned char>(character)))
+            return -1;
     }
 
-    for (char level = 'a'; level <= 'z'; level++)
-    {
-        sprintf(path, "%s-%c.mpq", scanmatch, level);
+    return std::atoi(level.c_str());
+}
 
-        if (file_exists(path))
-            pArchiveNames.emplace_back(path);
+// Every `prefix[<level>].mpq` of `directory`, MPQs and unpacked folders alike, in load order, so
+// the caller opens the highest level last and it wins inside MPQFile.
+bool scan_patches(char const* directory, char const* prefix, std::vector<std::string>& pArchiveNames)
+{
+    std::vector<std::pair<int, std::string>> ranked;
+
+    std::error_code error;
+    for (std::filesystem::directory_iterator it(directory, error), end; !error && it != end; it.increment(error))
+    {
+        std::string const fileName = it->path().filename().string();
+        int const rank = patch_load_order(fileName, prefix);
+        if (rank < 0)
+            continue;
+
+        ranked.emplace_back(rank, it->path().string());
     }
+
+    std::sort(ranked.begin(), ranked.end(), [](std::pair<int, std::string> const& left, std::pair<int, std::string> const& right)
+    {
+        return left.first != right.first ? left.first < right.first : left.second < right.second;
+    });
+
+    for (auto const& entry : ranked)
+        pArchiveNames.push_back(entry.second);
 
     return (true);
 }
@@ -298,7 +330,6 @@ bool fillArchiveNameVector(std::vector<std::string>& pArchiveNames)
 
     printf("\nGame path: %s\n", input_path);
 
-    char path[512];
     string in_path(input_path);
     std::vector<std::string> locales, searchLocales;
 
@@ -346,13 +377,7 @@ bool fillArchiveNameVector(std::vector<std::string>& pArchiveNames)
 
     // now, scan for the patch levels in the core dir
     printf("Scanning patch levels from data directory.\n");
-    int ret = snprintf(path, 512, "%spatch", input_path);
-    if (ret < 0)
-    {
-        printf("Error when formatting string");
-        return false;
-    }
-    if (!scan_patches(path, pArchiveNames))
+    if (!scan_patches(input_path, "patch", pArchiveNames))
         return (false);
 
     // now, scan for the patch levels in locale dirs
@@ -361,13 +386,9 @@ bool fillArchiveNameVector(std::vector<std::string>& pArchiveNames)
     for (auto & locale : locales)
     {
         printf("Locale: %s\n", locale.c_str());
-        int ret2 = snprintf(path, 512, "%s%s/patch-%s", input_path, locale.c_str(), locale.c_str());
-        if (ret2 < 0)
-        {
-            printf("Error when formatting string");
-            return false;
-        }
-        if (scan_patches(path, pArchiveNames))
+        std::string const localePath = in_path + locale + "/";
+        std::string const localePrefix = "patch-" + locale;
+        if (scan_patches(localePath.c_str(), localePrefix.c_str(), pArchiveNames))
             foundOne = true;
     }
 
