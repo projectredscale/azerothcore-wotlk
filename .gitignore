@@ -5,6 +5,7 @@
 .cache
 /conf/*
 !/conf/dist
+!/conf/config.sh
 /modules/*
 !/modules/*.md
 !/modules/*.sh
